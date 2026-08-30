@@ -1,0 +1,10 @@
+package = "example.db"
+output = "../src/main/kotlin"
+
+# Pinned so the committed output is byte-identical on every machine, whether or
+# not libpg_query happens to be installed. Set "auto" to use it when present.
+nullability = "conservative"
+
+[types]
+# pgd has no built-in mapping for interval; read it as its text form.
+interval = "text"

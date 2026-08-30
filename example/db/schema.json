@@ -1,0 +1,1441 @@
+{
+    "tables": [
+        {
+            "schema": "public",
+            "name": "events",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "user_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "name",
+                    "type": "text",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "note",
+                    "type": "text",
+                    "nullable": true,
+                    "default": null
+                },
+                {
+                    "name": "feeling",
+                    "type": "mood",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "happened",
+                    "type": "timestamp with time zone",
+                    "nullable": false,
+                    "default": "now()"
+                }
+            ],
+            "primaryKey": [
+                "id"
+            ],
+            "uniques": [],
+            "foreignKeys": [
+                {
+                    "columns": [
+                        "user_id"
+                    ],
+                    "targetTable": "users",
+                    "targetColumns": [
+                        "id"
+                    ]
+                }
+            ]
+        },
+        {
+            "schema": "public",
+            "name": "orders",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "user_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "total_cents",
+                    "type": "integer",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "placed_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false,
+                    "default": "now()"
+                }
+            ],
+            "primaryKey": [
+                "id"
+            ],
+            "uniques": [],
+            "foreignKeys": [
+                {
+                    "columns": [
+                        "user_id"
+                    ],
+                    "targetTable": "users",
+                    "targetColumns": [
+                        "id"
+                    ]
+                }
+            ]
+        },
+        {
+            "schema": "public",
+            "name": "preferences",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "mood",
+                    "type": "mood",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "tags",
+                    "type": "text[]",
+                    "nullable": false,
+                    "default": "'{}'::text[]"
+                },
+                {
+                    "name": "contact",
+                    "type": "email_address",
+                    "nullable": true,
+                    "default": null
+                },
+                {
+                    "name": "session_length",
+                    "type": "interval",
+                    "nullable": true,
+                    "default": null
+                },
+                {
+                    "name": "settings",
+                    "type": "jsonb",
+                    "nullable": false,
+                    "default": "'{}'::jsonb"
+                }
+            ],
+            "primaryKey": [
+                "user_id"
+            ],
+            "uniques": [],
+            "foreignKeys": [
+                {
+                    "columns": [
+                        "user_id"
+                    ],
+                    "targetTable": "users",
+                    "targetColumns": [
+                        "id"
+                    ]
+                }
+            ]
+        },
+        {
+            "schema": "public",
+            "name": "users",
+            "columns": [
+                {
+                    "name": "id",
+                    "type": "bigint",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "email",
+                    "type": "text",
+                    "nullable": false,
+                    "default": null
+                },
+                {
+                    "name": "display_name",
+                    "type": "text",
+                    "nullable": true,
+                    "default": null
+                },
+                {
+                    "name": "active",
+                    "type": "boolean",
+                    "nullable": false,
+                    "default": "true"
+                },
+                {
+                    "name": "created_at",
+                    "type": "timestamp with time zone",
+                    "nullable": false,
+                    "default": "now()"
+                }
+            ],
+            "primaryKey": [
+                "id"
+            ],
+            "uniques": [
+                [
+                    "email"
+                ]
+            ],
+            "foreignKeys": []
+        }
+    ],
+    "enums": [
+        {
+            "schema": "public",
+            "name": "mood",
+            "labels": [
+                "sad",
+                "ok",
+                "happy",
+                "over the moon"
+            ]
+        }
+    ],
+    "domains": [
+        {
+            "name": "email_address",
+            "baseType": "text",
+            "notNull": false
+        }
+    ],
+    "arrays": [
+        {
+            "name": "__pg_foreign_data_wrappers",
+            "elementType": "_pg_foreign_data_wrappers"
+        },
+        {
+            "name": "__pg_foreign_servers",
+            "elementType": "_pg_foreign_servers"
+        },
+        {
+            "name": "__pg_foreign_table_columns",
+            "elementType": "_pg_foreign_table_columns"
+        },
+        {
+            "name": "__pg_foreign_tables",
+            "elementType": "_pg_foreign_tables"
+        },
+        {
+            "name": "__pg_user_mappings",
+            "elementType": "_pg_user_mappings"
+        },
+        {
+            "name": "_aclitem",
+            "elementType": "aclitem"
+        },
+        {
+            "name": "_administrable_role_authorizations",
+            "elementType": "administrable_role_authorizations"
+        },
+        {
+            "name": "_applicable_roles",
+            "elementType": "applicable_roles"
+        },
+        {
+            "name": "_attributes",
+            "elementType": "attributes"
+        },
+        {
+            "name": "_bit",
+            "elementType": "bit"
+        },
+        {
+            "name": "_bool",
+            "elementType": "bool"
+        },
+        {
+            "name": "_box",
+            "elementType": "box"
+        },
+        {
+            "name": "_bpchar",
+            "elementType": "bpchar"
+        },
+        {
+            "name": "_bytea",
+            "elementType": "bytea"
+        },
+        {
+            "name": "_cardinal_number",
+            "elementType": "cardinal_number"
+        },
+        {
+            "name": "_char",
+            "elementType": "char"
+        },
+        {
+            "name": "_character_data",
+            "elementType": "character_data"
+        },
+        {
+            "name": "_character_sets",
+            "elementType": "character_sets"
+        },
+        {
+            "name": "_check_constraint_routine_usage",
+            "elementType": "check_constraint_routine_usage"
+        },
+        {
+            "name": "_check_constraints",
+            "elementType": "check_constraints"
+        },
+        {
+            "name": "_cid",
+            "elementType": "cid"
+        },
+        {
+            "name": "_cidr",
+            "elementType": "cidr"
+        },
+        {
+            "name": "_circle",
+            "elementType": "circle"
+        },
+        {
+            "name": "_collation_character_set_applicability",
+            "elementType": "collation_character_set_applicability"
+        },
+        {
+            "name": "_collations",
+            "elementType": "collations"
+        },
+        {
+            "name": "_column_column_usage",
+            "elementType": "column_column_usage"
+        },
+        {
+            "name": "_column_domain_usage",
+            "elementType": "column_domain_usage"
+        },
+        {
+            "name": "_column_options",
+            "elementType": "column_options"
+        },
+        {
+            "name": "_column_privileges",
+            "elementType": "column_privileges"
+        },
+        {
+            "name": "_column_udt_usage",
+            "elementType": "column_udt_usage"
+        },
+        {
+            "name": "_columns",
+            "elementType": "columns"
+        },
+        {
+            "name": "_constraint_column_usage",
+            "elementType": "constraint_column_usage"
+        },
+        {
+            "name": "_constraint_table_usage",
+            "elementType": "constraint_table_usage"
+        },
+        {
+            "name": "_cstring",
+            "elementType": "cstring"
+        },
+        {
+            "name": "_data_type_privileges",
+            "elementType": "data_type_privileges"
+        },
+        {
+            "name": "_date",
+            "elementType": "date"
+        },
+        {
+            "name": "_datemultirange",
+            "elementType": "datemultirange"
+        },
+        {
+            "name": "_daterange",
+            "elementType": "daterange"
+        },
+        {
+            "name": "_domain_constraints",
+            "elementType": "domain_constraints"
+        },
+        {
+            "name": "_domain_udt_usage",
+            "elementType": "domain_udt_usage"
+        },
+        {
+            "name": "_domains",
+            "elementType": "domains"
+        },
+        {
+            "name": "_element_types",
+            "elementType": "element_types"
+        },
+        {
+            "name": "_email_address",
+            "elementType": "email_address"
+        },
+        {
+            "name": "_enabled_roles",
+            "elementType": "enabled_roles"
+        },
+        {
+            "name": "_events",
+            "elementType": "events"
+        },
+        {
+            "name": "_float4",
+            "elementType": "float4"
+        },
+        {
+            "name": "_float8",
+            "elementType": "float8"
+        },
+        {
+            "name": "_foreign_data_wrapper_options",
+            "elementType": "foreign_data_wrapper_options"
+        },
+        {
+            "name": "_foreign_data_wrappers",
+            "elementType": "foreign_data_wrappers"
+        },
+        {
+            "name": "_foreign_server_options",
+            "elementType": "foreign_server_options"
+        },
+        {
+            "name": "_foreign_servers",
+            "elementType": "foreign_servers"
+        },
+        {
+            "name": "_foreign_table_options",
+            "elementType": "foreign_table_options"
+        },
+        {
+            "name": "_foreign_tables",
+            "elementType": "foreign_tables"
+        },
+        {
+            "name": "_gtsvector",
+            "elementType": "gtsvector"
+        },
+        {
+            "name": "_inet",
+            "elementType": "inet"
+        },
+        {
+            "name": "_information_schema_catalog_name",
+            "elementType": "information_schema_catalog_name"
+        },
+        {
+            "name": "_int2",
+            "elementType": "int2"
+        },
+        {
+            "name": "_int2vector",
+            "elementType": "int2vector"
+        },
+        {
+            "name": "_int4",
+            "elementType": "int4"
+        },
+        {
+            "name": "_int4multirange",
+            "elementType": "int4multirange"
+        },
+        {
+            "name": "_int4range",
+            "elementType": "int4range"
+        },
+        {
+            "name": "_int8",
+            "elementType": "int8"
+        },
+        {
+            "name": "_int8multirange",
+            "elementType": "int8multirange"
+        },
+        {
+            "name": "_int8range",
+            "elementType": "int8range"
+        },
+        {
+            "name": "_interval",
+            "elementType": "interval"
+        },
+        {
+            "name": "_json",
+            "elementType": "json"
+        },
+        {
+            "name": "_jsonb",
+            "elementType": "jsonb"
+        },
+        {
+            "name": "_jsonpath",
+            "elementType": "jsonpath"
+        },
+        {
+            "name": "_key_column_usage",
+            "elementType": "key_column_usage"
+        },
+        {
+            "name": "_line",
+            "elementType": "line"
+        },
+        {
+            "name": "_lseg",
+            "elementType": "lseg"
+        },
+        {
+            "name": "_macaddr",
+            "elementType": "macaddr"
+        },
+        {
+            "name": "_macaddr8",
+            "elementType": "macaddr8"
+        },
+        {
+            "name": "_money",
+            "elementType": "money"
+        },
+        {
+            "name": "_mood",
+            "elementType": "mood"
+        },
+        {
+            "name": "_name",
+            "elementType": "name"
+        },
+        {
+            "name": "_numeric",
+            "elementType": "numeric"
+        },
+        {
+            "name": "_nummultirange",
+            "elementType": "nummultirange"
+        },
+        {
+            "name": "_numrange",
+            "elementType": "numrange"
+        },
+        {
+            "name": "_oid",
+            "elementType": "oid"
+        },
+        {
+            "name": "_oidvector",
+            "elementType": "oidvector"
+        },
+        {
+            "name": "_orders",
+            "elementType": "orders"
+        },
+        {
+            "name": "_parameters",
+            "elementType": "parameters"
+        },
+        {
+            "name": "_path",
+            "elementType": "path"
+        },
+        {
+            "name": "_pg_aggregate",
+            "elementType": "pg_aggregate"
+        },
+        {
+            "name": "_pg_aios",
+            "elementType": "pg_aios"
+        },
+        {
+            "name": "_pg_am",
+            "elementType": "pg_am"
+        },
+        {
+            "name": "_pg_amop",
+            "elementType": "pg_amop"
+        },
+        {
+            "name": "_pg_amproc",
+            "elementType": "pg_amproc"
+        },
+        {
+            "name": "_pg_attrdef",
+            "elementType": "pg_attrdef"
+        },
+        {
+            "name": "_pg_attribute",
+            "elementType": "pg_attribute"
+        },
+        {
+            "name": "_pg_auth_members",
+            "elementType": "pg_auth_members"
+        },
+        {
+            "name": "_pg_authid",
+            "elementType": "pg_authid"
+        },
+        {
+            "name": "_pg_available_extension_versions",
+            "elementType": "pg_available_extension_versions"
+        },
+        {
+            "name": "_pg_available_extensions",
+            "elementType": "pg_available_extensions"
+        },
+        {
+            "name": "_pg_backend_memory_contexts",
+            "elementType": "pg_backend_memory_contexts"
+        },
+        {
+            "name": "_pg_cast",
+            "elementType": "pg_cast"
+        },
+        {
+            "name": "_pg_class",
+            "elementType": "pg_class"
+        },
+        {
+            "name": "_pg_collation",
+            "elementType": "pg_collation"
+        },
+        {
+            "name": "_pg_config",
+            "elementType": "pg_config"
+        },
+        {
+            "name": "_pg_constraint",
+            "elementType": "pg_constraint"
+        },
+        {
+            "name": "_pg_conversion",
+            "elementType": "pg_conversion"
+        },
+        {
+            "name": "_pg_cursors",
+            "elementType": "pg_cursors"
+        },
+        {
+            "name": "_pg_database",
+            "elementType": "pg_database"
+        },
+        {
+            "name": "_pg_db_role_setting",
+            "elementType": "pg_db_role_setting"
+        },
+        {
+            "name": "_pg_default_acl",
+            "elementType": "pg_default_acl"
+        },
+        {
+            "name": "_pg_depend",
+            "elementType": "pg_depend"
+        },
+        {
+            "name": "_pg_description",
+            "elementType": "pg_description"
+        },
+        {
+            "name": "_pg_enum",
+            "elementType": "pg_enum"
+        },
+        {
+            "name": "_pg_event_trigger",
+            "elementType": "pg_event_trigger"
+        },
+        {
+            "name": "_pg_extension",
+            "elementType": "pg_extension"
+        },
+        {
+            "name": "_pg_file_settings",
+            "elementType": "pg_file_settings"
+        },
+        {
+            "name": "_pg_foreign_data_wrapper",
+            "elementType": "pg_foreign_data_wrapper"
+        },
+        {
+            "name": "_pg_foreign_server",
+            "elementType": "pg_foreign_server"
+        },
+        {
+            "name": "_pg_foreign_table",
+            "elementType": "pg_foreign_table"
+        },
+        {
+            "name": "_pg_group",
+            "elementType": "pg_group"
+        },
+        {
+            "name": "_pg_hba_file_rules",
+            "elementType": "pg_hba_file_rules"
+        },
+        {
+            "name": "_pg_ident_file_mappings",
+            "elementType": "pg_ident_file_mappings"
+        },
+        {
+            "name": "_pg_index",
+            "elementType": "pg_index"
+        },
+        {
+            "name": "_pg_indexes",
+            "elementType": "pg_indexes"
+        },
+        {
+            "name": "_pg_inherits",
+            "elementType": "pg_inherits"
+        },
+        {
+            "name": "_pg_init_privs",
+            "elementType": "pg_init_privs"
+        },
+        {
+            "name": "_pg_language",
+            "elementType": "pg_language"
+        },
+        {
+            "name": "_pg_largeobject",
+            "elementType": "pg_largeobject"
+        },
+        {
+            "name": "_pg_largeobject_metadata",
+            "elementType": "pg_largeobject_metadata"
+        },
+        {
+            "name": "_pg_locks",
+            "elementType": "pg_locks"
+        },
+        {
+            "name": "_pg_lsn",
+            "elementType": "pg_lsn"
+        },
+        {
+            "name": "_pg_matviews",
+            "elementType": "pg_matviews"
+        },
+        {
+            "name": "_pg_namespace",
+            "elementType": "pg_namespace"
+        },
+        {
+            "name": "_pg_opclass",
+            "elementType": "pg_opclass"
+        },
+        {
+            "name": "_pg_operator",
+            "elementType": "pg_operator"
+        },
+        {
+            "name": "_pg_opfamily",
+            "elementType": "pg_opfamily"
+        },
+        {
+            "name": "_pg_parameter_acl",
+            "elementType": "pg_parameter_acl"
+        },
+        {
+            "name": "_pg_partitioned_table",
+            "elementType": "pg_partitioned_table"
+        },
+        {
+            "name": "_pg_policies",
+            "elementType": "pg_policies"
+        },
+        {
+            "name": "_pg_policy",
+            "elementType": "pg_policy"
+        },
+        {
+            "name": "_pg_prepared_statements",
+            "elementType": "pg_prepared_statements"
+        },
+        {
+            "name": "_pg_prepared_xacts",
+            "elementType": "pg_prepared_xacts"
+        },
+        {
+            "name": "_pg_proc",
+            "elementType": "pg_proc"
+        },
+        {
+            "name": "_pg_publication",
+            "elementType": "pg_publication"
+        },
+        {
+            "name": "_pg_publication_namespace",
+            "elementType": "pg_publication_namespace"
+        },
+        {
+            "name": "_pg_publication_rel",
+            "elementType": "pg_publication_rel"
+        },
+        {
+            "name": "_pg_publication_tables",
+            "elementType": "pg_publication_tables"
+        },
+        {
+            "name": "_pg_range",
+            "elementType": "pg_range"
+        },
+        {
+            "name": "_pg_replication_origin",
+            "elementType": "pg_replication_origin"
+        },
+        {
+            "name": "_pg_replication_origin_status",
+            "elementType": "pg_replication_origin_status"
+        },
+        {
+            "name": "_pg_replication_slots",
+            "elementType": "pg_replication_slots"
+        },
+        {
+            "name": "_pg_rewrite",
+            "elementType": "pg_rewrite"
+        },
+        {
+            "name": "_pg_roles",
+            "elementType": "pg_roles"
+        },
+        {
+            "name": "_pg_rules",
+            "elementType": "pg_rules"
+        },
+        {
+            "name": "_pg_seclabel",
+            "elementType": "pg_seclabel"
+        },
+        {
+            "name": "_pg_seclabels",
+            "elementType": "pg_seclabels"
+        },
+        {
+            "name": "_pg_sequence",
+            "elementType": "pg_sequence"
+        },
+        {
+            "name": "_pg_sequences",
+            "elementType": "pg_sequences"
+        },
+        {
+            "name": "_pg_settings",
+            "elementType": "pg_settings"
+        },
+        {
+            "name": "_pg_shadow",
+            "elementType": "pg_shadow"
+        },
+        {
+            "name": "_pg_shdepend",
+            "elementType": "pg_shdepend"
+        },
+        {
+            "name": "_pg_shdescription",
+            "elementType": "pg_shdescription"
+        },
+        {
+            "name": "_pg_shmem_allocations",
+            "elementType": "pg_shmem_allocations"
+        },
+        {
+            "name": "_pg_shmem_allocations_numa",
+            "elementType": "pg_shmem_allocations_numa"
+        },
+        {
+            "name": "_pg_shseclabel",
+            "elementType": "pg_shseclabel"
+        },
+        {
+            "name": "_pg_snapshot",
+            "elementType": "pg_snapshot"
+        },
+        {
+            "name": "_pg_stat_activity",
+            "elementType": "pg_stat_activity"
+        },
+        {
+            "name": "_pg_stat_all_indexes",
+            "elementType": "pg_stat_all_indexes"
+        },
+        {
+            "name": "_pg_stat_all_tables",
+            "elementType": "pg_stat_all_tables"
+        },
+        {
+            "name": "_pg_stat_archiver",
+            "elementType": "pg_stat_archiver"
+        },
+        {
+            "name": "_pg_stat_bgwriter",
+            "elementType": "pg_stat_bgwriter"
+        },
+        {
+            "name": "_pg_stat_checkpointer",
+            "elementType": "pg_stat_checkpointer"
+        },
+        {
+            "name": "_pg_stat_database",
+            "elementType": "pg_stat_database"
+        },
+        {
+            "name": "_pg_stat_database_conflicts",
+            "elementType": "pg_stat_database_conflicts"
+        },
+        {
+            "name": "_pg_stat_gssapi",
+            "elementType": "pg_stat_gssapi"
+        },
+        {
+            "name": "_pg_stat_io",
+            "elementType": "pg_stat_io"
+        },
+        {
+            "name": "_pg_stat_progress_analyze",
+            "elementType": "pg_stat_progress_analyze"
+        },
+        {
+            "name": "_pg_stat_progress_basebackup",
+            "elementType": "pg_stat_progress_basebackup"
+        },
+        {
+            "name": "_pg_stat_progress_cluster",
+            "elementType": "pg_stat_progress_cluster"
+        },
+        {
+            "name": "_pg_stat_progress_copy",
+            "elementType": "pg_stat_progress_copy"
+        },
+        {
+            "name": "_pg_stat_progress_create_index",
+            "elementType": "pg_stat_progress_create_index"
+        },
+        {
+            "name": "_pg_stat_progress_vacuum",
+            "elementType": "pg_stat_progress_vacuum"
+        },
+        {
+            "name": "_pg_stat_recovery_prefetch",
+            "elementType": "pg_stat_recovery_prefetch"
+        },
+        {
+            "name": "_pg_stat_replication",
+            "elementType": "pg_stat_replication"
+        },
+        {
+            "name": "_pg_stat_replication_slots",
+            "elementType": "pg_stat_replication_slots"
+        },
+        {
+            "name": "_pg_stat_slru",
+            "elementType": "pg_stat_slru"
+        },
+        {
+            "name": "_pg_stat_ssl",
+            "elementType": "pg_stat_ssl"
+        },
+        {
+            "name": "_pg_stat_subscription",
+            "elementType": "pg_stat_subscription"
+        },
+        {
+            "name": "_pg_stat_subscription_stats",
+            "elementType": "pg_stat_subscription_stats"
+        },
+        {
+            "name": "_pg_stat_sys_indexes",
+            "elementType": "pg_stat_sys_indexes"
+        },
+        {
+            "name": "_pg_stat_sys_tables",
+            "elementType": "pg_stat_sys_tables"
+        },
+        {
+            "name": "_pg_stat_user_functions",
+            "elementType": "pg_stat_user_functions"
+        },
+        {
+            "name": "_pg_stat_user_indexes",
+            "elementType": "pg_stat_user_indexes"
+        },
+        {
+            "name": "_pg_stat_user_tables",
+            "elementType": "pg_stat_user_tables"
+        },
+        {
+            "name": "_pg_stat_wal",
+            "elementType": "pg_stat_wal"
+        },
+        {
+            "name": "_pg_stat_wal_receiver",
+            "elementType": "pg_stat_wal_receiver"
+        },
+        {
+            "name": "_pg_stat_xact_all_tables",
+            "elementType": "pg_stat_xact_all_tables"
+        },
+        {
+            "name": "_pg_stat_xact_sys_tables",
+            "elementType": "pg_stat_xact_sys_tables"
+        },
+        {
+            "name": "_pg_stat_xact_user_functions",
+            "elementType": "pg_stat_xact_user_functions"
+        },
+        {
+            "name": "_pg_stat_xact_user_tables",
+            "elementType": "pg_stat_xact_user_tables"
+        },
+        {
+            "name": "_pg_statio_all_indexes",
+            "elementType": "pg_statio_all_indexes"
+        },
+        {
+            "name": "_pg_statio_all_sequences",
+            "elementType": "pg_statio_all_sequences"
+        },
+        {
+            "name": "_pg_statio_all_tables",
+            "elementType": "pg_statio_all_tables"
+        },
+        {
+            "name": "_pg_statio_sys_indexes",
+            "elementType": "pg_statio_sys_indexes"
+        },
+        {
+            "name": "_pg_statio_sys_sequences",
+            "elementType": "pg_statio_sys_sequences"
+        },
+        {
+            "name": "_pg_statio_sys_tables",
+            "elementType": "pg_statio_sys_tables"
+        },
+        {
+            "name": "_pg_statio_user_indexes",
+            "elementType": "pg_statio_user_indexes"
+        },
+        {
+            "name": "_pg_statio_user_sequences",
+            "elementType": "pg_statio_user_sequences"
+        },
+        {
+            "name": "_pg_statio_user_tables",
+            "elementType": "pg_statio_user_tables"
+        },
+        {
+            "name": "_pg_statistic",
+            "elementType": "pg_statistic"
+        },
+        {
+            "name": "_pg_statistic_ext",
+            "elementType": "pg_statistic_ext"
+        },
+        {
+            "name": "_pg_statistic_ext_data",
+            "elementType": "pg_statistic_ext_data"
+        },
+        {
+            "name": "_pg_stats",
+            "elementType": "pg_stats"
+        },
+        {
+            "name": "_pg_stats_ext",
+            "elementType": "pg_stats_ext"
+        },
+        {
+            "name": "_pg_stats_ext_exprs",
+            "elementType": "pg_stats_ext_exprs"
+        },
+        {
+            "name": "_pg_subscription",
+            "elementType": "pg_subscription"
+        },
+        {
+            "name": "_pg_subscription_rel",
+            "elementType": "pg_subscription_rel"
+        },
+        {
+            "name": "_pg_tables",
+            "elementType": "pg_tables"
+        },
+        {
+            "name": "_pg_tablespace",
+            "elementType": "pg_tablespace"
+        },
+        {
+            "name": "_pg_timezone_abbrevs",
+            "elementType": "pg_timezone_abbrevs"
+        },
+        {
+            "name": "_pg_timezone_names",
+            "elementType": "pg_timezone_names"
+        },
+        {
+            "name": "_pg_transform",
+            "elementType": "pg_transform"
+        },
+        {
+            "name": "_pg_trigger",
+            "elementType": "pg_trigger"
+        },
+        {
+            "name": "_pg_ts_config",
+            "elementType": "pg_ts_config"
+        },
+        {
+            "name": "_pg_ts_config_map",
+            "elementType": "pg_ts_config_map"
+        },
+        {
+            "name": "_pg_ts_dict",
+            "elementType": "pg_ts_dict"
+        },
+        {
+            "name": "_pg_ts_parser",
+            "elementType": "pg_ts_parser"
+        },
+        {
+            "name": "_pg_ts_template",
+            "elementType": "pg_ts_template"
+        },
+        {
+            "name": "_pg_type",
+            "elementType": "pg_type"
+        },
+        {
+            "name": "_pg_user",
+            "elementType": "pg_user"
+        },
+        {
+            "name": "_pg_user_mapping",
+            "elementType": "pg_user_mapping"
+        },
+        {
+            "name": "_pg_user_mappings",
+            "elementType": "pg_user_mappings"
+        },
+        {
+            "name": "_pg_views",
+            "elementType": "pg_views"
+        },
+        {
+            "name": "_pg_wait_events",
+            "elementType": "pg_wait_events"
+        },
+        {
+            "name": "_point",
+            "elementType": "point"
+        },
+        {
+            "name": "_polygon",
+            "elementType": "polygon"
+        },
+        {
+            "name": "_preferences",
+            "elementType": "preferences"
+        },
+        {
+            "name": "_refcursor",
+            "elementType": "refcursor"
+        },
+        {
+            "name": "_referential_constraints",
+            "elementType": "referential_constraints"
+        },
+        {
+            "name": "_regclass",
+            "elementType": "regclass"
+        },
+        {
+            "name": "_regcollation",
+            "elementType": "regcollation"
+        },
+        {
+            "name": "_regconfig",
+            "elementType": "regconfig"
+        },
+        {
+            "name": "_regdictionary",
+            "elementType": "regdictionary"
+        },
+        {
+            "name": "_regnamespace",
+            "elementType": "regnamespace"
+        },
+        {
+            "name": "_regoper",
+            "elementType": "regoper"
+        },
+        {
+            "name": "_regoperator",
+            "elementType": "regoperator"
+        },
+        {
+            "name": "_regproc",
+            "elementType": "regproc"
+        },
+        {
+            "name": "_regprocedure",
+            "elementType": "regprocedure"
+        },
+        {
+            "name": "_regrole",
+            "elementType": "regrole"
+        },
+        {
+            "name": "_regtype",
+            "elementType": "regtype"
+        },
+        {
+            "name": "_role_column_grants",
+            "elementType": "role_column_grants"
+        },
+        {
+            "name": "_role_routine_grants",
+            "elementType": "role_routine_grants"
+        },
+        {
+            "name": "_role_table_grants",
+            "elementType": "role_table_grants"
+        },
+        {
+            "name": "_role_udt_grants",
+            "elementType": "role_udt_grants"
+        },
+        {
+            "name": "_role_usage_grants",
+            "elementType": "role_usage_grants"
+        },
+        {
+            "name": "_routine_column_usage",
+            "elementType": "routine_column_usage"
+        },
+        {
+            "name": "_routine_privileges",
+            "elementType": "routine_privileges"
+        },
+        {
+            "name": "_routine_routine_usage",
+            "elementType": "routine_routine_usage"
+        },
+        {
+            "name": "_routine_sequence_usage",
+            "elementType": "routine_sequence_usage"
+        },
+        {
+            "name": "_routine_table_usage",
+            "elementType": "routine_table_usage"
+        },
+        {
+            "name": "_routines",
+            "elementType": "routines"
+        },
+        {
+            "name": "_schemata",
+            "elementType": "schemata"
+        },
+        {
+            "name": "_sequences",
+            "elementType": "sequences"
+        },
+        {
+            "name": "_sql_features",
+            "elementType": "sql_features"
+        },
+        {
+            "name": "_sql_identifier",
+            "elementType": "sql_identifier"
+        },
+        {
+            "name": "_sql_implementation_info",
+            "elementType": "sql_implementation_info"
+        },
+        {
+            "name": "_sql_parts",
+            "elementType": "sql_parts"
+        },
+        {
+            "name": "_sql_sizing",
+            "elementType": "sql_sizing"
+        },
+        {
+            "name": "_table_constraints",
+            "elementType": "table_constraints"
+        },
+        {
+            "name": "_table_privileges",
+            "elementType": "table_privileges"
+        },
+        {
+            "name": "_tables",
+            "elementType": "tables"
+        },
+        {
+            "name": "_text",
+            "elementType": "text"
+        },
+        {
+            "name": "_tid",
+            "elementType": "tid"
+        },
+        {
+            "name": "_time",
+            "elementType": "time"
+        },
+        {
+            "name": "_time_stamp",
+            "elementType": "time_stamp"
+        },
+        {
+            "name": "_timestamp",
+            "elementType": "timestamp"
+        },
+        {
+            "name": "_timestamptz",
+            "elementType": "timestamptz"
+        },
+        {
+            "name": "_timetz",
+            "elementType": "timetz"
+        },
+        {
+            "name": "_transforms",
+            "elementType": "transforms"
+        },
+        {
+            "name": "_triggered_update_columns",
+            "elementType": "triggered_update_columns"
+        },
+        {
+            "name": "_triggers",
+            "elementType": "triggers"
+        },
+        {
+            "name": "_tsmultirange",
+            "elementType": "tsmultirange"
+        },
+        {
+            "name": "_tsquery",
+            "elementType": "tsquery"
+        },
+        {
+            "name": "_tsrange",
+            "elementType": "tsrange"
+        },
+        {
+            "name": "_tstzmultirange",
+            "elementType": "tstzmultirange"
+        },
+        {
+            "name": "_tstzrange",
+            "elementType": "tstzrange"
+        },
+        {
+            "name": "_tsvector",
+            "elementType": "tsvector"
+        },
+        {
+            "name": "_txid_snapshot",
+            "elementType": "txid_snapshot"
+        },
+        {
+            "name": "_udt_privileges",
+            "elementType": "udt_privileges"
+        },
+        {
+            "name": "_usage_privileges",
+            "elementType": "usage_privileges"
+        },
+        {
+            "name": "_user_defined_types",
+            "elementType": "user_defined_types"
+        },
+        {
+            "name": "_user_mapping_options",
+            "elementType": "user_mapping_options"
+        },
+        {
+            "name": "_user_mappings",
+            "elementType": "user_mappings"
+        },
+        {
+            "name": "_users",
+            "elementType": "users"
+        },
+        {
+            "name": "_uuid",
+            "elementType": "uuid"
+        },
+        {
+            "name": "_varbit",
+            "elementType": "varbit"
+        },
+        {
+            "name": "_varchar",
+            "elementType": "varchar"
+        },
+        {
+            "name": "_view_column_usage",
+            "elementType": "view_column_usage"
+        },
+        {
+            "name": "_view_routine_usage",
+            "elementType": "view_routine_usage"
+        },
+        {
+            "name": "_view_table_usage",
+            "elementType": "view_table_usage"
+        },
+        {
+            "name": "_views",
+            "elementType": "views"
+        },
+        {
+            "name": "_xid",
+            "elementType": "xid"
+        },
+        {
+            "name": "_xid8",
+            "elementType": "xid8"
+        },
+        {
+            "name": "_xml",
+            "elementType": "xml"
+        },
+        {
+            "name": "_yes_or_no",
+            "elementType": "yes_or_no"
+        },
+        {
+            "name": "int2vector",
+            "elementType": "int2"
+        },
+        {
+            "name": "oidvector",
+            "elementType": "oid"
+        }
+    ]
+}
