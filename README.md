@@ -1,4 +1,4 @@
-# pgdescribe
+#  Kokkiri SQL - pgdescribe
 
 ```
     .-"-.             .-"-.
