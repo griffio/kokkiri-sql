@@ -1,0 +1,29 @@
+[versions]
+kotlin = "2.3.21"
+serialization = "1.11.0"
+postgresql = "42.7.13"
+zonky = "2.2.2"
+zonky-binaries = "18.4.0"
+tomlj = "1.1.1"
+logback = "1.5.32"
+junit = "4.13.2"
+
+[libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+
+postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+
+zonky-embedded-postgres = { module = "io.zonky.test:embedded-postgres", version.ref = "zonky" }
+zonky-embedded-postgres-bom = { module = "io.zonky.test.postgres:embedded-postgres-binaries-bom", version.ref = "zonky-binaries" }
+
+tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
+
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
