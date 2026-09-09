@@ -88,6 +88,36 @@ class PreciseNullabilityTest {
     }
 
     @Test
+    fun `an outer join to a CTE nulls the table underneath it`() {
+        withSchema { connection ->
+            // pgjdbc reports x.nickname as pet.nickname, which is NOT NULL in
+            // the catalog. Before the CTE was expanded, only "x" was on the
+            // nullable side, so this came back non-null — the one direction
+            // the tool must never be wrong in.
+            val sql = "WITH x AS (SELECT id, person_id, nickname FROM pet) " +
+                "SELECT p.name, x.nickname FROM person p LEFT JOIN x ON x.person_id = p.id"
+            assertEquals(
+                listOf("name" to false, "nickname" to true),
+                nullability(connection, sql, withParser = parser),
+            )
+        }
+    }
+
+    @Test
+    fun `an outer join to a view stays nullable without any help`() {
+        withSchema { connection ->
+            connection.createStatement().use { it.execute("CREATE VIEW pets AS SELECT id, person_id, nickname FROM pet") }
+            // Postgres reports view columns as the view's own attributes, which
+            // carry no NOT NULL, so pgjdbc already answers nullable here.
+            val sql = "SELECT p.name, v.nickname FROM person p LEFT JOIN pets v ON v.person_id = p.id"
+            assertEquals(
+                listOf("name" to false, "nickname" to true),
+                nullability(connection, sql, withParser = parser),
+            )
+        }
+    }
+
+    @Test
     fun `a self join with one outer arm stays conservative`() {
         withSchema { connection ->
             val sql = "SELECT a.name AS a_name, b.name AS b_name FROM person a LEFT JOIN person b ON b.id = a.id"

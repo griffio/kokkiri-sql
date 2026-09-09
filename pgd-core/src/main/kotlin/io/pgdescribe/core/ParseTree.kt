@@ -23,7 +23,18 @@ public data class JoinFacts(
     val demotesEverything: Boolean,
 )
 
-/** Reads [JoinFacts] out of the JSON parse tree libpg_query produces. */
+/**
+ * Reads [JoinFacts] out of the JSON parse tree libpg_query produces.
+ *
+ * A relation on the nullable side may be a CTE rather than a table. That
+ * matters because Postgres reports a column selected through a non-recursive
+ * CTE as belonging to the table underneath it — so pgjdbc answers with that
+ * table's NOT NULL constraint, and the name in the parse tree (`x`) never
+ * matches the name in the RowDescription (`members`). A CTE on a nullable
+ * side therefore also nulls every relation its query reads from, recursively.
+ * Views need no such step: Postgres reports their columns as the view's own,
+ * and a view column carries no NOT NULL constraint.
+ */
 public object ParseTree {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -38,14 +49,25 @@ public object ParseTree {
         val nullable = sortedSetOf<String>()
         var demotes = false
 
+        // Every CTE in the statement, by name, wherever it is declared. Scope
+        // is ignored on purpose: treating a CTE as visible everywhere can only
+        // add relations to the nullable set, which is the safe direction.
+        val ctes = HashMap<String, JsonElement>()
+        walk(statements) { name, node ->
+            if (name == "CommonTableExpr") {
+                val cteName = node.text("ctename") ?: return@walk
+                node["ctequery"]?.let { ctes[cteName.lowercase()] = it }
+            }
+        }
+
         walk(statements) { name, node ->
             when (name) {
                 "JoinExpr" -> when (node.text("jointype")) {
-                    "JOIN_LEFT" -> node["rarg"]?.let { collectRelations(it, nullable) }
-                    "JOIN_RIGHT" -> node["larg"]?.let { collectRelations(it, nullable) }
+                    "JOIN_LEFT" -> node["rarg"]?.let { collectRelations(it, nullable, ctes) }
+                    "JOIN_RIGHT" -> node["larg"]?.let { collectRelations(it, nullable, ctes) }
                     "JOIN_FULL" -> {
-                        node["larg"]?.let { collectRelations(it, nullable) }
-                        node["rarg"]?.let { collectRelations(it, nullable) }
+                        node["larg"]?.let { collectRelations(it, nullable, ctes) }
+                        node["rarg"]?.let { collectRelations(it, nullable, ctes) }
                     }
 
                     else -> Unit
@@ -60,10 +82,23 @@ public object ParseTree {
         return JoinFacts(nullableRelations = nullable, demotesEverything = demotes)
     }
 
-    /** Every relation named anywhere beneath [element], including inside subqueries. */
-    private fun collectRelations(element: JsonElement, into: MutableSet<String>) {
+    /**
+     * Every relation named anywhere beneath [element], including inside
+     * subqueries, and inside the query of any CTE named there. [expanded]
+     * stops a recursive CTE, or two CTEs naming each other, from looping.
+     */
+    private fun collectRelations(
+        element: JsonElement,
+        into: MutableSet<String>,
+        ctes: Map<String, JsonElement>,
+        expanded: MutableSet<String> = HashSet(),
+    ) {
         walk(element) { name, node ->
-            if (name == "RangeVar") node.text("relname")?.let { into += it.lowercase() }
+            if (name != "RangeVar") return@walk
+            val relation = node.text("relname")?.lowercase() ?: return@walk
+            into += relation
+            val cte = ctes[relation] ?: return@walk
+            if (expanded.add(relation)) collectRelations(cte, into, ctes, expanded)
         }
     }
 

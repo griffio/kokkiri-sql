@@ -81,6 +81,39 @@ class ParseTreeTest {
         assertEquals(setOf("b"), facts(cte)!!.nullableRelations)
     }
 
+    private fun cte(name: String, from: String) =
+        """{"CommonTableExpr":{"ctename":"$name","ctequery":{"SelectStmt":{"fromClause":[$from]}}}}"""
+
+    private fun selectWith(ctes: String, from: String) =
+        """{"version":180004,"stmts":[{"stmt":{"SelectStmt":{"withClause":{"ctes":[$ctes]},"fromClause":[$from]}}}]}"""
+
+    @Test
+    fun `a CTE on a nullable side nulls the relations its query reads`() {
+        // Postgres reports x.total as orders.total, so "orders" is the name the
+        // catalog lookup will present; "x" alone would never match it.
+        val result = facts(selectWith(cte("x", rel("orders")), join("JOIN_LEFT", rel("users"), rel("x"))))!!
+        assertEquals(setOf("orders", "x"), result.nullableRelations)
+    }
+
+    @Test
+    fun `a CTE built on another CTE is followed all the way down`() {
+        val ctes = cte("x", rel("orders")) + "," + cte("y", rel("x"))
+        val result = facts(selectWith(ctes, join("JOIN_LEFT", rel("users"), rel("y"))))!!
+        assertEquals(setOf("orders", "x", "y"), result.nullableRelations)
+    }
+
+    @Test
+    fun `a CTE that names itself does not loop`() {
+        val result = facts(selectWith(cte("x", rel("x")), join("JOIN_LEFT", rel("users"), rel("x"))))!!
+        assertEquals(setOf("x"), result.nullableRelations)
+    }
+
+    @Test
+    fun `a CTE on the non-nullable side nulls nothing`() {
+        val result = facts(selectWith(cte("x", rel("orders")), join("JOIN_LEFT", rel("x"), rel("users"))))!!
+        assertEquals(setOf("users"), result.nullableRelations)
+    }
+
     @Test
     fun `the same relation on both sides of a self join resolves the safe way`() {
         val result = facts(select(join("JOIN_LEFT", rel("users"), rel("users"))))!!

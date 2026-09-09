@@ -77,6 +77,15 @@ class FfmPgQueryParserTest {
     }
 
     @Test
+    fun `a real left join to a CTE names the table the CTE reads`() {
+        val result = facts(
+            "WITH x AS (SELECT id, user_id, total FROM orders) " +
+                "SELECT u.id, x.total FROM users u LEFT JOIN x ON x.user_id = u.id",
+        )!!
+        assertEquals(setOf("orders", "x"), result.nullableRelations)
+    }
+
+    @Test
     fun `a real self join with one outer arm resolves the safe way`() {
         assertEquals(
             setOf("users"),
