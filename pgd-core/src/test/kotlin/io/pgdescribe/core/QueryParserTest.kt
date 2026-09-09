@@ -200,6 +200,35 @@ class QueryParserTest {
     }
 
     @Test
+    fun `drops a trailing comment so the body ends at its semicolon`() {
+        // The comment is documentation for the *next* query, written above its
+        // header. It must not leave a `;` in this statement's body.
+        val result = QueryParser.parse(
+            """
+            -- name: First :one
+            SELECT 1;
+
+            -- The second query does something else.
+            -- name: Second :one
+            SELECT 2;
+            """.trimIndent(),
+            Path.of("q.sql"),
+        )
+        assertEquals(emptyList(), result.diagnostics)
+        assertEquals(listOf("SELECT 1", "SELECT 2"), result.queries.map { it.sql })
+    }
+
+    @Test
+    fun `a body that is only comments is empty`() {
+        val result = QueryParser.parse(
+            "-- name: Q :one\n-- nothing here\n\n-- name: R :one\nSELECT 1;\n",
+            Path.of("q.sql"),
+        )
+        assertEquals(listOf(Diagnostic.EMPTY_QUERY), result.diagnostics.map { it.code })
+        assertEquals(listOf("R"), result.queries.map { it.name })
+    }
+
+    @Test
     fun `keeps a leading comment as part of the body`() {
         val query = parse(
             """

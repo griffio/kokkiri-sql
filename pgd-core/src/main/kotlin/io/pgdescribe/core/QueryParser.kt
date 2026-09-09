@@ -110,7 +110,14 @@ public object QueryParser {
         fun flush() {
             val header = pending ?: return
             pending = null
-            val kept = body.dropWhile { it.value.isBlank() }
+            // Comment lines written above the next header land here, after this
+            // statement's semicolon. Left in, the body would be sent as
+            // `SELECT ...;\n-- note`, which pgjdbc splits at the `;` into two
+            // statements — described cleanly by check, then rejected at runtime
+            // with "Multiple ResultSets were returned by the query".
+            val kept = body
+                .dropWhile { it.value.isBlank() }
+                .dropLastWhile { it.value.isBlank() || it.value.trimStart().startsWith("--") }
             body.clear()
 
             if (kept.isEmpty()) {
