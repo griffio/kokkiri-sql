@@ -55,6 +55,10 @@ Rules:
   the file stays runnable in `psql`.
 - `-- params:` names them positionally, for generated function signatures. If
   you write it, it must name exactly as many as the statement uses.
+- Parameters are non-null. Append `?` to a name (`-- params: since?`) to accept
+  NULL: the Kotlin parameter becomes `T?` and null binds SQL NULL. Write
+  optional filters as `($1::bigint IS NULL OR col = $1::bigint)`, never with a
+  sentinel like `-1`. `-- nullable:` cannot do this; it names result columns.
 - Cast a placeholder (`$1::uuid`) whenever Postgres cannot infer its type. The
   error will tell you when this is needed.
 - `-- nullable:` / `-- notnull:` override inferred column nullability. Reach for
@@ -62,6 +66,11 @@ Rules:
 
 Directives are only read in the comment block directly after the header. Once
 the statement body starts, `--` lines are ordinary SQL comments.
+
+Any other comment line in that block, and a comment block directly above the
+header with no blank line between, documents the query: it becomes the
+generated function's KDoc and is not sent to Postgres. Put per-query prose
+there.
 
 ## Bulk loading
 
@@ -115,7 +124,7 @@ pgd check --dir db --queries ../deployed/db/queries   # a worktree of the deploy
 | PGD1004 | `-- params:` names a different number of parameters than the statement uses. |
 | PGD1005 | Placeholders skip a number (`$1` and `$3` but no `$2`). |
 | PGD1006 | One `$n` used twice, inferred as two different types. Cast both. |
-| PGD1007 | A `-- nullable:`/`-- notnull:` override names a column the query does not return. |
+| PGD1007 | A `-- nullable:`/`-- notnull:` override names a column the query does not return. To make a parameter nullable, write `name?` on `-- params:`. |
 | PGD1008 | `-- batch` on a statement that returns rows, or takes no parameters. |
 | PGD1009 | A `:copy` statement is not `COPY table (columns) FROM STDIN`, or copies a type COPY text cannot carry. |
 | PGD2001-2005 | Malformed query file: duplicate name, bad header, unknown tag, SQL with no header, empty body. |
@@ -143,8 +152,12 @@ function type. Queries that collapse to a scalar, and `:exec`/`:execrows`/
 `:copy`, have no row to map and get no overload.
 
 A column is typed non-null only when it passes straight through from a NOT NULL
-base column and nothing in the statement can null it. If a type looks too
-pessimistic, fix it with `-- notnull:` rather than casting around it.
+base column and nothing in the statement can null it — or, under `precise`,
+when its expression cannot be NULL by definition: `count(...)`, `EXISTS`,
+`ARRAY(...)`, an ungrouped `(SELECT count(*) ...)`, `COALESCE` with a non-null
+argument, and arithmetic over those, including through CTE and subquery
+columns. If a type still looks too pessimistic, fix it with `-- notnull:`
+rather than casting around it.
 
 How precisely that is decided is set by `nullability` in `pgd.toml`:
 `conservative` demotes every column in any statement containing an outer join or

@@ -59,6 +59,26 @@ WHERE u.active AND u.created_at > $1::timestamptz;
 Queries keep native `$1` placeholders, so any file here can be pasted straight
 into `psql`.
 
+Parameters are non-null unless the name says otherwise. `since?` accepts NULL,
+which is the honest form of an optional filter — no sentinel value:
+
+```sql
+-- name: FindUsers :many
+-- Every active user, or only those created after `since` when it is given.
+-- params: since?
+SELECT id, email FROM users
+WHERE active AND ($1::timestamptz IS NULL OR created_at > $1::timestamptz);
+```
+
+```kotlin
+fun Connection.findUsers(since: OffsetDateTime?): List<FindUsersRow>
+```
+
+Prose in the comment block after the header, or in a comment block directly
+above it, becomes the generated function's KDoc. It is not part of the
+statement, so it is never sent to Postgres, and a directive written after it is
+still read.
+
 ## What check reports
 
 ```
@@ -230,7 +250,7 @@ parser is available:
 
 | Mode | Behaviour |
 |---|---|
-| `precise` | Requires libpg_query. Only relations actually on the nullable side of an outer join are demoted. Fails the run if the parser is missing. |
+| `precise` | Requires libpg_query. Only relations actually on the nullable side of an outer join are demoted, and expressions SQL defines as never NULL are proven non-null (below). Fails the run if the parser is missing. |
 | `auto` (default) | `precise` when libpg_query is installed, `conservative` when it is not. |
 | `conservative` | Never uses the parser. Any outer join, `ROLLUP`, `CUBE` or `GROUPING SETS` anywhere in the statement demotes every column. |
 
@@ -246,6 +266,26 @@ FROM users u LEFT JOIN orders o ON o.user_id = u.id
 A self-join with one outer arm (`FROM users a LEFT JOIN users b`) stays
 conservative even in `precise` mode: both columns come from `users`, so neither
 can be proven.
+
+`precise` also proves the expressions that cannot be NULL whatever the data,
+which pgjdbc says nothing about:
+
+- `count(...)` (not as a window function), `EXISTS (...)`, `ARRAY(...)`, and
+  `IS [NOT] NULL` / `IS [NOT] TRUE` tests;
+- a scalar `(SELECT count(*) ...)` with no `GROUP BY`, `HAVING`, `LIMIT` or
+  `OFFSET`, which always yields exactly one row;
+- non-NULL literals, casts, `COALESCE` with a proven argument, and `+`, `-`,
+  `*` over proven operands (assuming built-in operators);
+- a CTE or subquery column whose own expression is proven, unless an outer
+  join or `ROLLUP`/`CUBE`/`GROUPING SETS` can null it.
+
+So `SELECT count(*) FROM t` is a `Long` without `-- notnull:`. A target list
+containing `*`, or a `UNION`, is not analysed, since the proofs are matched to
+result columns by position.
+
+`check` and `generate` end their summary with the mode that actually ran, e.g.
+`Nullability: precise, proved with libpg_query.`, so a build log shows which
+types were produced.
 
 Set the mode in `pgd.toml`:
 

@@ -3,7 +3,7 @@
 **Status: M0–M6 are done, M7 is three quarters done** (2026-08-27). `COPY`,
 batching, exact cardinality and row mappers have shipped; the R2DBC target is an
 open decision, see §17. CLI, Gradle plugin and
-optional libpg_query bindings all work; 189 tests pass, including generated code
+optional libpg_query bindings all work; 218 tests pass, including generated code
 that compiles and runs against a real Postgres, TestKit builds that prove the
 plugin's incremental and build-cache behaviour, and per-column nullability
 proved against Postgres' own parser. See §11–§15 for what building them
@@ -913,3 +913,72 @@ raise `0A000 cached plan must not change result type` even when the new code is
 correct; cycle the pool after migrating, or set pgjdbc's `prepareThreshold=0`.
 Neither belongs in pgd, but both belong in whatever `docs/` eventually says
 about deploying.
+
+## 22. What porting a real application changed
+
+Porting the SqlDelight book-review app (`../kokkiri-sql`) onto pgd was the first
+use by an application rather than by the example. Its `PORTING.md` is the full
+record; four changes to pgd came out of it.
+
+### Parameters can be nullable: `-- params: since?`
+
+Every parameter was non-null and nothing could change that — `-- nullable:`
+names result columns, and naming a parameter there is PGD1007. The app had to
+invent sentinels: `-1` for "no filter", `0` for "unknown year", and `NULLIF` in
+the SQL to turn an empty string back into the NULL the column meant. Each one
+is a value the type system cannot see.
+
+A `?` on the name is the smallest syntax that fixes it. It stays inside the
+comment, so the file still runs in psql (decision #6), it reuses the line that
+already names parameters (decision #7), and it reads the way the Kotlin will:
+`since?` becomes `since: OffsetDateTime?`. A null binds as a *typed* NULL
+(`setNull(i, Types.BIGINT)`, not `Types.OTHER`), so pgjdbc sends the same
+parameter type either way and a server-prepared statement is not re-prepared
+each time the argument flips. PGD1007's hint now points at the syntax when the
+override names a parameter.
+
+### Expressions SQL defines as never NULL are proven, under `precise`
+
+§15 deliberately asked the parse tree one coarse question — which relations can
+an outer join null? — and left every non-passthrough column nullable. In the app
+that left 9 hand-written `-- notnull:` names across 7 queries, every one a
+`count`, an `EXISTS`, or arithmetic over counts read through a CTE: claims the
+tool could not check, which is the kind it exists to remove.
+
+`ExpressionNullability` adds a second, per-column question, but only for
+expressions whose non-nullness follows from SQL itself: `count(...)` without
+`OVER`, `EXISTS`, `ARRAY(...)`, null tests, an ungrouped scalar
+`(SELECT count(*) ...)`, non-NULL literals, casts, `COALESCE` with a proven
+argument, `+ - *` over proven operands, and CTE or subquery columns whose
+expression is proven and which no outer join or grouping set can null. All 9
+overrides are gone.
+
+It keeps §15's discipline. It only ever *removes* a `?` — anything unproven
+falls through to the catalog and outer-join rules unchanged. It is positional,
+so it refuses a target list containing `*` or a set operation rather than
+risking misalignment, and `Nullability.resolve` uses it only when the parser's
+target count equals the RowDescription's. The one assumption is that `+`, `-`
+and `*` are built-in operators, which never return NULL for non-NULL input; a
+user-defined operator that did would be wrong in the unsafe direction, and is
+documented rather than detected. Like the outer-join rule it needs the parser,
+so it widens the gap between `precise` and `conservative` — which is why §15
+made the mode a pinned, cache-keyed setting in the first place.
+
+### Query prose is documentation, not statement text
+
+A comment in the directive block started the body, so it was shipped to
+Postgres inside every prepared statement, showed up in `pg_stat_statements`,
+and — worse — silently turned any directive written after it into an ordinary
+SQL comment. Prose there, and a comment block directly above the header, now
+becomes the generated function's KDoc and is kept out of `sql`. Trailing
+comments after a statement's `;` were already dropped (they used to split into a
+second statement at runtime); a block that sits directly on the next header now
+documents that query instead of vanishing.
+
+### The report names the nullability mode
+
+`pgdGenerate` logged "Nullability: proving with libpg_query" at INFO, so a Gradle
+build never showed which mode produced the types — a green build on JDK 17
+looked identical to one on 25. The effective mode is now on `CheckReport` and
+`GenerateReport` (and their JSON), and the text summary ends with it.
+
