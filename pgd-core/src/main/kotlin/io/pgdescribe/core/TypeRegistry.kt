@@ -8,8 +8,11 @@ internal sealed interface ResolvedType {
     /** Expression producing the value of column [index] from `resultSet`. */
     fun read(index: Int, nullable: Boolean): String
 
-    /** Statement binding [name] at 1-based [position] of `statement`. */
-    fun bind(position: Int, name: String): String
+    /**
+     * Statement binding [name] at 1-based [position] of `statement`. When
+     * [nullable], [name] is a `T?` and a null binds SQL NULL.
+     */
+    fun bind(position: Int, name: String, nullable: Boolean = false): String
 
     /** Expression rendering [name] as a COPY text field, or null if unsupported. */
     fun copyExpression(name: String, nullable: Boolean): String? = "pgdCopyText($name)"
@@ -36,9 +39,12 @@ internal class ScalarType(private val type: SqlType) : ResolvedType {
         }
     }
 
-    override fun bind(position: Int, name: String): String = when (type.access) {
-        Access.OBJECT -> "statement.setObject($position, $name)"
-        else -> "statement.set${type.accessor}($position, $name)"
+    override fun bind(position: Int, name: String, nullable: Boolean): String {
+        val value = when (type.access) {
+            Access.OBJECT -> "statement.setObject($position, $name)"
+            else -> "statement.set${type.accessor}($position, $name)"
+        }
+        return if (nullable) "if ($name == null) statement.setNull($position, Types.${type.jdbcType}) else $value" else value
     }
 
     /** How an element of this type is recovered from an untyped array slot. */
@@ -63,8 +69,8 @@ internal class EnumType(
 
     // Sending the label as an untyped value lets Postgres coerce it to the enum,
     // whether or not the query casts the placeholder.
-    override fun bind(position: Int, name: String): String =
-        "statement.setObject($position, $name.label, Types.OTHER)"
+    override fun bind(position: Int, name: String, nullable: Boolean): String =
+        "statement.setObject($position, $name${if (nullable) "?" else ""}.label, Types.OTHER)"
 
     fun fromArrayElement(expression: String): String =
         "($expression as String?)?.let { $kotlin.fromLabel(it) }"
@@ -99,9 +105,10 @@ internal class ArrayType(
         }
     }
 
-    override fun bind(position: Int, name: String): String {
+    override fun bind(position: Int, name: String, nullable: Boolean): String {
         val values = if (element is EnumType) "$name.map { it?.label }" else name
-        return "statement.setArray($position, createArrayOf(\"$elementPostgresName\", $values.toTypedArray()))"
+        val value = "statement.setArray($position, createArrayOf(\"$elementPostgresName\", $values.toTypedArray()))"
+        return if (nullable) "if ($name == null) statement.setNull($position, Types.ARRAY) else $value" else value
     }
 
     // COPY text format would need array-literal quoting rules of its own.

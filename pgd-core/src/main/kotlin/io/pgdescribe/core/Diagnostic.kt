@@ -93,6 +93,8 @@ public data class CheckReport(
     val migrationsApplied: Int,
     val queriesChecked: Int,
     val diagnostics: List<Diagnostic>,
+    /** How nullability was decided, e.g. `precise, proved with libpg_query`; null when no analysis ran. */
+    val nullability: String? = null,
 ) {
     val errorCount: Int get() = diagnostics.count { it.severity == Severity.ERROR }
     val warningCount: Int get() = diagnostics.count { it.severity == Severity.WARNING }

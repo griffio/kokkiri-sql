@@ -19,7 +19,11 @@ private data class Param(
     val type: ResolvedType,
     /** The `$n` this parameter corresponds to. */
     val index: Int,
-)
+    /** Declared `name?`, so the Kotlin type is optional and null binds SQL NULL. */
+    val nullable: Boolean = false,
+) {
+    val kotlinType: String get() = type.kotlin + if (nullable) "?" else ""
+}
 
 private data class Column(
     val property: String,
@@ -149,6 +153,7 @@ internal object CodeGenerator {
                 name = Naming.escape(Naming.lowerCamel(info.name ?: "param${info.index}")),
                 type = type,
                 index = info.index,
+                nullable = info.nullable,
             )
         }
 
@@ -202,6 +207,7 @@ internal object CodeGenerator {
         val query = analyzed.query
         val imports = mutableSetOf<String>()
         params.forEach { imports += it.type.imports }
+        if (params.any { it.nullable }) imports += "java.sql.Types"
         columns.forEach { imports += it.type.imports }
 
         val rowClass = query.name + "Row"
@@ -255,7 +261,7 @@ internal object CodeGenerator {
         val function = if (mapped) {
             buildString {
                 append("fun <T : Any> Connection.$name(\n")
-                params.forEach { append("    ${it.name}: ${it.type.kotlin},\n") }
+                params.forEach { append("    ${it.name}: ${it.kotlinType},\n") }
                 append("    $mapper: (\n")
                 columns.forEach { append("        ${it.property}: ${it.kotlinType},\n") }
                 append("    ) -> T,\n")
@@ -263,7 +269,7 @@ internal object CodeGenerator {
             }
         } else {
             "fun Connection.$name(" +
-                params.joinToString(", ") { "${it.name}: ${it.type.kotlin}" } +
+                params.joinToString(", ") { "${it.name}: ${it.kotlinType}" } +
                 ")"
         }
 
@@ -362,7 +368,7 @@ internal object CodeGenerator {
             Cardinality.ONE -> "$rowClass?"
             else -> rowClass
         }
-        val signature = params.joinToString(", ") { "${it.name}: ${it.type.kotlin}" }
+        val signature = params.joinToString(", ") { "${it.name}: ${it.kotlinType}" }
         val arguments = (params.map { it.name } + "::$rowClass").joinToString(", ")
         val header = "fun Connection.$name($signature): $returnType ="
         return buildString {
@@ -371,7 +377,7 @@ internal object CodeGenerator {
                 append("$header\n")
             } else {
                 append("fun Connection.$name(\n")
-                params.forEach { append("    ${it.name}: ${it.type.kotlin},\n") }
+                params.forEach { append("    ${it.name}: ${it.kotlinType},\n") }
                 append("): $returnType =\n")
             }
             val call = "    $name($arguments)"
@@ -394,12 +400,12 @@ internal object CodeGenerator {
         val query = analyzed.query
         val single = params.singleOrNull()
         val paramsClass = query.name + "Params"
-        val element = single?.type?.kotlin ?: paramsClass
+        val element = single?.kotlinType ?: paramsClass
 
         return buildString {
             if (single == null) {
                 append("\ndata class $paramsClass(\n")
-                params.forEach { append("    val ${it.name}: ${it.type.kotlin},\n") }
+                params.forEach { append("    val ${it.name}: ${it.kotlinType},\n") }
                 append(")\n")
             }
             append("\n/** Batched form of [${Naming.lowerCamel(query.name)}]. */\n")
@@ -486,7 +492,7 @@ internal object CodeGenerator {
         name: (Param) -> String,
     ): String = analyzed.bindings.mapIndexed { position, original ->
         val param = params.first { it.index == original }
-        " ".repeat(indent) + param.type.bind(position + 1, name(param)) + "\n"
+        " ".repeat(indent) + param.type.bind(position + 1, name(param), param.nullable) + "\n"
     }.joinToString("")
 
     private fun construct(
@@ -517,6 +523,11 @@ internal object CodeGenerator {
 
     private fun kdoc(query: ParsedQuery): String = buildString {
         append("/**\n")
+        // The query's own prose leads; it was kept out of the statement text.
+        query.doc.forEach { line ->
+            append(if (line.isBlank()) " *\n" else " * ${line.replace("*/", "* /")}\n")
+        }
+        if (query.doc.isNotEmpty()) append(" *\n")
         append(" * ```sql\n")
         // `*/` inside the statement would close the comment early.
         query.sql.split("\n").forEach { append(" * ${it.replace("*/", "* /")}\n") }

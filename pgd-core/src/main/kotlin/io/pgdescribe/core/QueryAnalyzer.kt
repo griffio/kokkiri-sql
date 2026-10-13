@@ -11,6 +11,8 @@ public data class ParamInfo(
     val typeName: String?,
     /** How many times `$n` appears; each occurrence is a separate JDBC bind. */
     val occurrences: Int,
+    /** Declared `name?` on the `-- params:` line, so NULL may be bound. */
+    val nullable: Boolean = false,
 )
 
 public data class ColumnInfo(
@@ -153,11 +155,13 @@ public class QueryAnalyzer(
                             "Cast every occurrence to the same type, e.g. \$$original::text.",
                         )
                     }
+                    val name = query.paramNames.getOrNull(original - 1)
                     ParamInfo(
                         index = original,
-                        name = query.paramNames.getOrNull(original - 1),
+                        name = name,
                         typeName = typeName,
                         occurrences = types.size,
+                        nullable = name != null && name in query.nullableParams,
                     )
                 }
 

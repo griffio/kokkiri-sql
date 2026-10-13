@@ -13,6 +13,8 @@ public data class GenerateReport(
     /** Paths written, relative to the output directory. Empty when nothing was written. */
     val written: List<String>,
     val diagnostics: List<Diagnostic>,
+    /** How nullability was decided, e.g. `precise, proved with libpg_query`; null when no analysis ran. */
+    val nullability: String? = null,
 ) {
     public val errorCount: Int get() = diagnostics.count { it.severity == Severity.ERROR }
     public val warningCount: Int get() = diagnostics.count { it.severity == Severity.WARNING }
@@ -93,6 +95,7 @@ public object GenerateRunner {
             queriesChecked = analysis.queriesParsed,
             written = if (ok) files.map { it.relativePath } + extras.map { it.first.fileName.toString() } else emptyList(),
             diagnostics = diagnostics.sortedWith(compareBy({ it.file }, { it.line }, { it.code })),
+            nullability = analysis.nullability,
         )
     }
 }

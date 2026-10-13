@@ -3,6 +3,7 @@ package io.pgdescribe.core
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -229,7 +230,7 @@ class QueryParserTest {
     }
 
     @Test
-    fun `keeps a leading comment as part of the body`() {
+    fun `a leading comment documents the query instead of joining its body`() {
         val query = parse(
             """
             -- name: A :one
@@ -238,8 +239,69 @@ class QueryParserTest {
             """,
         ).queries.single()
         assertNotNull(query)
-        assertEquals(2, query.sqlStartLine)
-        assertTrue(query.sql.startsWith("-- Finds the newest user."))
+        assertEquals(listOf("Finds the newest user."), query.doc)
+        assertEquals(3, query.sqlStartLine)
+        assertTrue(query.sql.startsWith("SELECT"), query.sql)
+    }
+
+    @Test
+    fun `a directive written after prose is still read`() {
+        val query = parse(
+            """
+            -- name: A :one
+            -- Prose first, which used to start the body and swallow the line below.
+            -- notnull: total
+            SELECT count(*) AS total FROM users;
+            """,
+        ).queries.single()
+        assertEquals(setOf("total"), query.notNullOverrides)
+        assertEquals(listOf("Prose first, which used to start the body and swallow the line below."), query.doc)
+        assertFalse("--" in query.sql, query.sql)
+    }
+
+    @Test
+    fun `a comment block directly above a header documents that query, not the one before`() {
+        val result = parse(
+            """
+            -- name: A :one
+            SELECT 1;
+
+            -- Belongs to B.
+            -- Two lines of it.
+            -- name: B :one
+            SELECT 2;
+            """,
+        )
+        val (a, b) = result.queries
+        assertEquals("SELECT 1", a.sql)
+        assertEquals(emptyList(), a.doc)
+        assertEquals(listOf("Belongs to B.", "Two lines of it."), b.doc)
+    }
+
+    @Test
+    fun `a file comment separated from the first header by a blank line documents nothing`() {
+        val query = parse(
+            """
+            -- Queries about users.
+
+            -- name: A :one
+            SELECT 1;
+            """,
+        ).queries.single()
+        assertEquals(emptyList(), query.doc)
+    }
+
+    @Test
+    fun `a question mark on a parameter name makes it nullable`() {
+        val query = parse(
+            """
+            -- name: A :many
+            -- params: name, since?
+            SELECT id FROM users WHERE name = $1::text AND ($2::timestamptz IS NULL OR created_at > $2::timestamptz);
+            """,
+        ).queries.single()
+        assertEquals(listOf("name", "since"), query.paramNames)
+        assertEquals(setOf("since"), query.nullableParams)
     }
 
     @Test

@@ -19,8 +19,10 @@ import java.sql.ResultSetMetaData
  *
  * When libpg_query is installed, [JoinFacts] narrows this from "the statement
  * contains an outer join, so nothing is provable" to "these relations are on a
- * nullable side". Without it the keyword scan below is the fallback, and it is
- * wrong only in the same safe direction.
+ * nullable side", and proves the expressions SQL defines as never NULL —
+ * `count(...)`, `EXISTS` and friends, see [ExpressionNullability]. Without it
+ * the keyword scan below is the fallback, and it is wrong only in the same
+ * safe direction.
  *
  * See `PgJdbcNullabilityProbeTest`, which pins the pgjdbc behaviour relied on
  * here so a change to it is noticed.
@@ -47,11 +49,17 @@ internal object Nullability {
         facts: JoinFacts?,
     ): List<Boolean> {
         val demoteAll = if (facts != null) facts.demotesEverything else demotesEverything(maskedSql)
+        // Proofs about expressions are positional, so they count only when the
+        // target list the parser saw is the result Postgres described.
+        val proven = facts?.takeIf { it.targetCount == columns.size }?.provenNonNull.orEmpty()
         return columns.map { column ->
             val baseTable = column.baseTable?.lowercase()
             when {
                 column.label in query.notNullOverrides -> false
                 column.label in query.nullableOverrides -> true
+                // Ahead of the outer-join rules: count(*) and EXISTS cannot be
+                // NULL whichever side of a join they read from.
+                column.index in proven -> false
                 demoteAll -> true
                 // The null check is not defensive: a column with no base
                 // relation — an aggregate, an EXISTS, a scalar subquery — passes
@@ -83,10 +91,12 @@ internal object Nullability {
                     query = query.name,
                     message = "Query '${query.name}' overrides nullability for '$name', " +
                         "which is not one of its result columns.",
-                    hint = if (labels.isEmpty()) {
-                        "This statement returns no columns."
-                    } else {
-                        "Its columns are: " + labels.joinToString(", ") + "."
+                    hint = when {
+                        name in query.paramNames ->
+                            "'$name' is a parameter, and overrides only describe result columns. " +
+                                "To let it accept NULL, write `$name?` on the `-- params:` line."
+                        labels.isEmpty() -> "This statement returns no columns."
+                        else -> "Its columns are: " + labels.joinToString(", ") + "."
                     },
                 )
             }

@@ -9,6 +9,7 @@ import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -543,5 +544,74 @@ class GenerateRunnerTest {
     fun `copy writes an enum as its label`() {
         val code = generate("-- name: Load :copy\nCOPY feeling (mood) FROM STDIN;", migration = enumSchema).code!!
         assertTrue("pgdCopyText(row.mood.label)" in code, code)
+    }
+
+    @Test
+    fun `a nullable parameter is optional in Kotlin and binds a typed NULL`() {
+        val result = generate(
+            """
+            -- name: Filtered :many
+            -- params: name, minAge?
+            SELECT id FROM person WHERE name = $1::text AND ($2::integer IS NULL OR age >= $2::integer);
+            """,
+        )
+        assertTrue(result.report.ok, Reporters.toText(result.report))
+        val code = result.code!!
+        assertTrue("fun Connection.filtered(name: String, minAge: Int?): List<Long> =" in code, code)
+        assertTrue("import java.sql.Types" in code, code)
+        // Both occurrences of $2 bind it, each NULL-aware.
+        assertTrue("if (minAge == null) statement.setNull(2, Types.INTEGER) else statement.setInt(2, minAge)" in code, code)
+        assertTrue("if (minAge == null) statement.setNull(3, Types.INTEGER) else statement.setInt(3, minAge)" in code, code)
+        assertTrue("statement.setString(1, name)" in code, code)
+    }
+
+    @Test
+    fun `a batch carries parameter nullability into its params class`() {
+        val code = generate(
+            """
+            -- name: AddPerson :exec
+            -- batch
+            -- params: name, note?
+            INSERT INTO person (name, note, age, object) VALUES ($1::text, $2::text, 1, 'x');
+            """,
+        ).code!!
+        assertTrue("data class AddPersonParams(\n    val name: String,\n    val note: String?,\n)" in code, code)
+        assertTrue("if (row.note == null) statement.setNull(2, Types.VARCHAR) else statement.setString(2, row.note)" in code, code)
+    }
+
+    @Test
+    fun `a nullable override that names a parameter points at the params syntax`() {
+        val result = generate(
+            """
+            -- name: ByName :many
+            -- params: name
+            -- nullable: name
+            SELECT id FROM person WHERE name = $1::text;
+            """,
+        )
+        val diagnostic = result.report.diagnostics.single { it.code == Diagnostic.UNKNOWN_OVERRIDE }
+        assertTrue("`name?`" in diagnostic.hint.orEmpty(), diagnostic.hint)
+    }
+
+    @Test
+    fun `query prose becomes KDoc and is not sent to Postgres`() {
+        val code = generate(
+            """
+            -- name: Names :many
+            -- Every name, alphabetically.
+            -- A second line.
+            SELECT name FROM person ORDER BY name;
+            """,
+        ).code!!
+        assertTrue("/**\n * Every name, alphabetically.\n * A second line.\n *\n * ```sql\n" in code, code)
+        assertTrue("private const val NAMES: String =\n    \"SELECT name FROM person ORDER BY name\"" in code, code)
+    }
+
+    @Test
+    fun `the report says which nullability mode decided the types`() {
+        val result = generate("-- name: AllNames :many\nSELECT name FROM person;")
+        val mode = assertNotNull(result.report.nullability)
+        assertTrue(mode.startsWith("auto, "), mode)
+        assertTrue("Nullability: $mode." in Reporters.toText(result.report), Reporters.toText(result.report))
     }
 }

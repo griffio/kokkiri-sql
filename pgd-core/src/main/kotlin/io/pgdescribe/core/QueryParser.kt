@@ -48,11 +48,19 @@ public data class ParsedQuery(
     val name: String,
     val cardinality: Cardinality,
     val paramNames: List<String>,
+    /** Parameters marked `name?` on the `-- params:` line, which accept NULL. */
+    val nullableParams: Set<String> = emptySet(),
     val nullableOverrides: Set<String>,
     val notNullOverrides: Set<String>,
     /** `-- batch` was requested, so a batching function is generated alongside. */
     val batch: Boolean,
     val sql: String,
+    /**
+     * Prose written about the query: comment lines in the directive block, and
+     * a comment block directly above the header. Documentation for the
+     * generated function, never part of [sql], so it is not sent to Postgres.
+     */
+    val doc: List<String> = emptyList(),
     val file: Path,
     val headerLine: Int,
     val sqlStartLine: Int,
@@ -74,7 +82,12 @@ public data class QueryParseResult(
  *
  * The body stays valid SQL you can paste straight into psql, which is why
  * parameters are positional `$1` with an optional `-- params:` line naming them
- * for codegen rather than a `:name` syntax that psql would reject.
+ * for codegen rather than a `:name` syntax that psql would reject. A name
+ * written `since?` accepts NULL.
+ *
+ * Any other comment in the directive block, and a comment block directly above
+ * the header with no blank line between, documents the query: it becomes the
+ * generated function's KDoc and is kept out of the statement text.
  */
 public object QueryParser {
 
@@ -83,6 +96,7 @@ public object QueryParser {
     private val FLAG = Regex("""^\s*--\s*(batch)\s*$""")
     private val IDENTIFIER = Regex("""^[A-Za-z_][A-Za-z0-9_]*$""")
     private val WHITESPACE = Regex("""\s+""")
+    private val COMMENT = Regex("""^\s*--\s?(.*)$""")
 
     public fun parseFile(file: Path): QueryParseResult = parse(file.readText(), file)
 
@@ -94,6 +108,9 @@ public object QueryParser {
         var pending: Header? = null
         val body = mutableListOf<IndexedValue<String>>()
         var sawHeader = false
+        // The comment lines immediately above the current line, with no blank
+        // or SQL line between: a header that follows adopts them as its doc.
+        val commentRun = mutableListOf<String>()
 
         fun error(line: Int, code: String, message: String, hint: String?, query: String? = null) {
             diagnostics += Diagnostic(
@@ -147,10 +164,12 @@ public object QueryParser {
                 name = header.name,
                 cardinality = header.cardinality,
                 paramNames = header.paramNames,
+                nullableParams = header.nullableParams,
                 nullableOverrides = header.nullable,
                 notNullOverrides = header.notNull,
                 batch = header.batch,
                 sql = kept.joinToString("\n") { it.value }.trimEnd().removeSuffix(";").trimEnd(),
+                doc = header.doc.dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() },
                 file = file,
                 headerLine = header.line,
                 sqlStartLine = kept.first().index + 1,
@@ -167,8 +186,13 @@ public object QueryParser {
                 flush()
                 sawHeader = true
                 pending = parseHeader(headerMatch.groupValues[1], lineNo, ::error)
+                pending?.doc?.addAll(commentRun)
+                commentRun.clear()
                 continue
             }
+
+            val comment = COMMENT.matchEntire(raw)
+            if (comment != null) commentRun += comment.groupValues[1].trimEnd() else commentRun.clear()
 
             val current = pending
             if (current != null && !current.bodyStarted) {
@@ -185,10 +209,25 @@ public object QueryParser {
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
                     when (directive.groupValues[1]) {
-                        "params" -> current.paramNames = values
+                        "params" -> {
+                            current.paramNames = values.map { it.removeSuffix("?").trimEnd() }
+                            current.nullableParams = values
+                                .filter { it.endsWith("?") }
+                                .map { it.removeSuffix("?").trimEnd() }
+                                .toSet()
+                        }
                         "nullable" -> current.nullable = values.toSet()
                         "notnull" -> current.notNull = values.toSet()
                     }
+                    continue
+                }
+
+                // Prose before the statement documents it. Left in the body it
+                // would be shipped to Postgres inside every prepared statement,
+                // and a directive written after it would silently be ignored.
+                if (comment != null) {
+                    current.doc += comment.groupValues[1].trimEnd()
+                    commentRun.clear()
                     continue
                 }
             }
@@ -366,6 +405,8 @@ public object QueryParser {
         val line: Int,
     ) {
         var paramNames: List<String> = emptyList()
+        var nullableParams: Set<String> = emptySet()
+        val doc: MutableList<String> = mutableListOf()
         var nullable: Set<String> = emptySet()
         var notNull: Set<String> = emptySet()
         var batch: Boolean = false

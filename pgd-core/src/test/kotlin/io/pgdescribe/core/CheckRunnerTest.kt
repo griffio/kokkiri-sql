@@ -42,7 +42,7 @@ class CheckRunnerTest {
         assertTrue(report.ok, Reporters.toText(report))
         assertEquals(0, report.errorCount, Reporters.toText(report))
         assertEquals(4, report.migrationsApplied)
-        assertEquals(12, report.queriesChecked)
+        assertEquals(13, report.queriesChecked)
     }
 
     @Test

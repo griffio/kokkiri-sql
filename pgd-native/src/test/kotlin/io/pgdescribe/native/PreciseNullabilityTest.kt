@@ -146,13 +146,15 @@ class PreciseNullabilityTest {
             // Every one of these threw NullPointerException before the null
             // guard in Nullability.resolve: pgjdbc reports no base table for a
             // column that is not a plain reference, and the parse-tree lookup
-            // asked a TreeSet whether it contained null.
+            // asked a TreeSet whether it contained null. count(*), EXISTS and
+            // an ungrouped count subquery are now proven non-null outright;
+            // avg has no such proof and stays nullable.
             assertEquals(
-                listOf("count" to true),
+                listOf("count" to false),
                 nullability(connection, "SELECT count(*) FROM person", parser),
             )
             assertEquals(
-                listOf("exists" to true),
+                listOf("exists" to false),
                 nullability(connection, "SELECT EXISTS (SELECT 1 FROM person)", parser),
             )
             assertEquals(
@@ -160,7 +162,7 @@ class PreciseNullabilityTest {
                 nullability(connection, "SELECT avg(p.id::float8) FROM person p", parser),
             )
             assertEquals(
-                listOf("n" to true),
+                listOf("n" to false),
                 nullability(connection, "SELECT (SELECT count(*) FROM pet) AS n FROM person", parser),
             )
         }
@@ -169,10 +171,11 @@ class PreciseNullabilityTest {
     @Test
     fun `an aggregate beside a provable column does not disturb it`() {
         withSchema { connection ->
-            // The aggregate is unprovable, but it must not cost the column
-            // beside it the proof the parse tree can still make.
+            // Neither proof may cost the other: the base column is proven by
+            // the parse tree, the count by its own definition, despite the
+            // outer join it reads from.
             assertEquals(
-                listOf("name" to false, "count" to true),
+                listOf("name" to false, "count" to false),
                 nullability(
                     connection,
                     "SELECT p.name, count(t.id) FROM person p LEFT JOIN pet t ON t.person_id = p.id " +
@@ -180,6 +183,109 @@ class PreciseNullabilityTest {
                     parser,
                 ),
             )
+        }
+    }
+
+    @Test
+    fun `expressions SQL defines as never null are proven so`() {
+        withSchema { connection ->
+            val sql = """
+                SELECT count(t.id) FILTER (WHERE t.nickname <> '') AS filtered,
+                       ARRAY(SELECT nickname FROM pet ORDER BY nickname) AS nicknames,
+                       COALESCE(p.note, '') AS note,
+                       p.note IS NULL AS unnoted,
+                       (count(*) + count(t.id) * 2)::bigint AS score,
+                       -count(*) AS negated,
+                       'literal' AS label
+                FROM person p LEFT JOIN pet t ON t.person_id = p.id
+                GROUP BY p.note
+            """.trimIndent()
+            assertEquals(
+                listOf(
+                    "filtered" to false, "nicknames" to false, "note" to false, "unnoted" to false,
+                    "score" to false, "negated" to false, "label" to false,
+                ),
+                nullability(connection, sql, parser),
+            )
+        }
+    }
+
+    @Test
+    fun `expressions that can be null stay nullable`() {
+        withSchema { connection ->
+            val sql = """
+                SELECT count(*) OVER () AS windowed,
+                       (SELECT count(*) FROM pet GROUP BY person_id LIMIT 1) AS grouped,
+                       (SELECT nickname FROM pet LIMIT 1) AS first_nickname,
+                       COALESCE(p.note, NULL) AS still_null,
+                       NULL::text AS nothing,
+                       p.id = ANY (SELECT person_id FROM pet) AS any_match,
+                       sum(p.id) AS total
+                FROM person p
+                GROUP BY p.id, p.note
+            """.trimIndent()
+            assertEquals(
+                listOf(
+                    "windowed" to true, "grouped" to true, "first_nickname" to true, "still_null" to true,
+                    "nothing" to true, "any_match" to true, "total" to true,
+                ),
+                nullability(connection, sql, parser),
+            )
+        }
+    }
+
+    @Test
+    fun `a CTE column carries its proof to the query that reads it`() {
+        withSchema { connection ->
+            val sql = """
+                WITH counted AS (
+                    SELECT p.id, (SELECT count(*) FROM pet t WHERE t.person_id = p.id) AS pets
+                    FROM person p
+                )
+                SELECT c.pets, c.pets * 2 AS doubled, x.pets AS outer_pets
+                FROM counted c
+                LEFT JOIN counted x ON x.id = c.id + 1
+            """.trimIndent()
+            // The same CTE column is proven through c and not through x, which
+            // sits on the nullable side of the outer join.
+            assertEquals(
+                listOf("pets" to false, "doubled" to false, "outer_pets" to true),
+                nullability(connection, sql, parser),
+            )
+        }
+    }
+
+    @Test
+    fun `a subquery column is proven, unless an outer join can null it`() {
+        withSchema { connection ->
+            val sql = """
+                SELECT s.n, j.n AS joined_n
+                FROM (SELECT count(*) AS n FROM pet) s
+                LEFT JOIN (SELECT person_id, count(*) AS n FROM pet GROUP BY person_id) j ON true
+            """.trimIndent()
+            assertEquals(listOf("n" to false, "joined_n" to true), nullability(connection, sql, parser))
+        }
+    }
+
+    @Test
+    fun `a star or a set operation leaves expressions unproven rather than misaligned`() {
+        withSchema { connection ->
+            assertEquals(
+                listOf("id" to false, "name" to false, "note" to true, "count" to true),
+                nullability(connection, "SELECT p.*, (SELECT count(*) FROM pet) AS count FROM person p", parser),
+            )
+            assertEquals(
+                listOf("count" to true),
+                nullability(connection, "SELECT count(*) FROM person UNION ALL SELECT count(*) FROM pet", parser),
+            )
+        }
+    }
+
+    @Test
+    fun `count stays proven under grouping sets, which null only the grouped columns`() {
+        withSchema { connection ->
+            val sql = "SELECT p.name, count(*) FROM person p GROUP BY ROLLUP (p.name)"
+            assertEquals(listOf("name" to true, "count" to false), nullability(connection, sql, parser))
         }
     }
 

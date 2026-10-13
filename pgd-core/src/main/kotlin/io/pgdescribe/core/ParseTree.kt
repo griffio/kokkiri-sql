@@ -21,6 +21,18 @@ public data class JoinFacts(
     val nullableRelations: Set<String>,
     /** ROLLUP, CUBE or GROUPING SETS is present, which can null any grouped column. */
     val demotesEverything: Boolean,
+    /**
+     * 1-based result positions whose expression cannot be NULL whatever the
+     * data — `count(...)`, `EXISTS`, and the rest of [ExpressionNullability].
+     * They hold regardless of outer joins and grouping sets.
+     */
+    val provenNonNull: Set<Int> = emptySet(),
+    /**
+     * How many result columns the target list describes, so [provenNonNull]
+     * is used only when it lines up with the RowDescription. Null when the
+     * target list could not be analysed.
+     */
+    val targetCount: Int? = null,
 )
 
 /**
@@ -79,7 +91,15 @@ public object ParseTree {
             }
         }
 
-        return JoinFacts(nullableRelations = nullable, demotesEverything = demotes)
+        val statement = (statements.single() as? JsonObject)?.get("stmt") as? JsonObject
+        val expressions = statement?.let { ExpressionNullability.analyze(it) }
+
+        return JoinFacts(
+            nullableRelations = nullable,
+            demotesEverything = demotes,
+            provenNonNull = expressions?.first.orEmpty(),
+            targetCount = expressions?.second,
+        )
     }
 
     /**

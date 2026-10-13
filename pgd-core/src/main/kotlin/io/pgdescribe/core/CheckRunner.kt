@@ -29,6 +29,12 @@ public data class ProjectAnalysis(
     val migrationsApplied: Int,
     val queriesParsed: Int,
     val catalog: PgCatalog = PgCatalog.EMPTY,
+    /**
+     * The effective nullability mode, e.g. `precise, proved with libpg_query`. It
+     * decides the generated types, so the report says which one ran rather
+     * than leaving it to a log line.
+     */
+    val nullability: String? = null,
 ) {
     public val ok: Boolean get() = diagnostics.none { it.severity == Severity.ERROR }
 
@@ -37,6 +43,7 @@ public data class ProjectAnalysis(
         migrationsApplied = migrationsApplied,
         queriesChecked = queriesParsed,
         diagnostics = diagnostics,
+        nullability = nullability,
     )
 }
 
@@ -131,6 +138,12 @@ public object ProjectAnalyzer {
                 "Nullability: conservative (Postgres' parser not installed)"
             },
         )
+        val nullability = when {
+            parser != null && config.nullability == NullabilityMode.AUTO -> "auto, proved with ${parser.description}"
+            parser != null -> "precise, proved with ${parser.description}"
+            config.nullability == NullabilityMode.AUTO -> "auto, conservative (Postgres' parser not installed)"
+            else -> "conservative"
+        }
 
         val analyzed = mutableListOf<AnalyzedQuery>()
         var catalog = PgCatalog.EMPTY
@@ -180,6 +193,7 @@ public object ProjectAnalyzer {
             migrationsApplied = migrations.size,
             queriesParsed = queries.size,
             catalog = catalog,
+            nullability = nullability,
         )
     }
 }

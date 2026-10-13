@@ -16,11 +16,25 @@ public object Reporters {
 
     public fun toText(report: CheckReport, relativeTo: Path? = null): String =
         diagnostics(report.diagnostics, relativeTo) +
-            summary(report.queriesChecked, report.migrationsApplied, report.errorCount, report.warningCount)
+            summary(
+                report.queriesChecked,
+                report.migrationsApplied,
+                report.errorCount,
+                report.warningCount,
+                report.nullability,
+            )
 
     public fun toText(report: GenerateReport, relativeTo: Path? = null): String = buildString {
         append(diagnostics(report.diagnostics, relativeTo))
-        append(summary(report.queriesChecked, report.migrationsApplied, report.errorCount, report.warningCount))
+        append(
+            summary(
+                report.queriesChecked,
+                report.migrationsApplied,
+                report.errorCount,
+                report.warningCount,
+                report.nullability,
+            ),
+        )
         append(
             if (report.written.isEmpty()) {
                 "Wrote nothing.\n"
@@ -51,7 +65,9 @@ public object Reporters {
         return out.toString()
     }
 
-    private fun summary(queries: Int, migrations: Int, errors: Int, warnings: Int): String =
+    private fun summary(queries: Int, migrations: Int, errors: Int, warnings: Int, nullability: String?): String =
         "Checked $queries quer${if (queries == 1) "y" else "ies"} against $migrations migration(s): " +
-            "$errors error(s), $warnings warning(s).\n"
+            "$errors error(s), $warnings warning(s).\n" +
+            // The mode decides the generated types, so a build log must say which ran.
+            (nullability?.let { "Nullability: $it.\n" } ?: "")
 }
