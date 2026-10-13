@@ -13,6 +13,7 @@ import example.db.eventNames
 import example.db.findPreferences
 import example.db.insertUser
 import example.db.recordEvent
+import example.db.searchUsers
 import example.db.setPreferences
 import example.db.usersInMood
 import io.pgdescribe.core.CodeGenConfig
@@ -75,6 +76,20 @@ class GeneratedCodeTest {
             assertEquals("ada@example.com", found.email)
             assertEquals("Ada", found.displayName)
             assertEquals(inserted.createdAt, found.createdAt)
+        }
+    }
+
+    @Test
+    fun `a nullable parameter binds NULL as well as a value`() {
+        withSchema { connection ->
+            connection.insertUser(email = "ada@example.com", displayName = "Ada")
+            connection.insertUser(email = "grace@example.org", displayName = "Grace")
+
+            assertEquals(listOf("ada@example.com", "grace@example.org"), connection.searchUsers(null).map { it.email })
+            assertEquals(listOf("grace@example.org"), connection.searchUsers(".org").map { it.email })
+            // And back to NULL on the same connection, where pgjdbc may have
+            // server-prepared the statement with a typed parameter by now.
+            repeat(6) { assertEquals(2, connection.searchUsers(null).size) }
         }
     }
 

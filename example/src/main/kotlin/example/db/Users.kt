@@ -2,6 +2,7 @@
 package example.db
 
 import java.sql.Connection
+import java.sql.Types
 import java.time.OffsetDateTime
 
 data class FindActiveUsersRow(
@@ -107,6 +108,54 @@ fun <T : Any> Connection.findUserByEmail(
 /** Maps each row to [FindUserByEmailRow]. */
 fun Connection.findUserByEmail(email: String): FindUserByEmailRow? =
     findUserByEmail(email, ::FindUserByEmailRow)
+
+data class SearchUsersRow(
+    val id: Long,
+    val email: String,
+)
+
+private const val SEARCH_USERS: String =
+    "SELECT id, email\n" +
+        "FROM users\n" +
+        "WHERE ? ::text IS NULL OR email LIKE '%' || ? ::text || '%'\n" +
+        "ORDER BY id"
+
+/**
+ * Every user whose email contains the fragment, or every user when it is NULL.
+ * A nullable parameter is the honest form of an optional filter: no sentinel.
+ *
+ * ```sql
+ * SELECT id, email
+ * FROM users
+ * WHERE $1::text IS NULL OR email LIKE '%' || $1::text || '%'
+ * ORDER BY id
+ * ```
+ */
+fun <T : Any> Connection.searchUsers(
+    emailFragment: String?,
+    mapper: (
+        id: Long,
+        email: String,
+    ) -> T,
+): List<T> =
+    prepareStatement(SEARCH_USERS).use { statement ->
+        if (emailFragment == null) statement.setNull(1, Types.VARCHAR) else statement.setString(1, emailFragment)
+        if (emailFragment == null) statement.setNull(2, Types.VARCHAR) else statement.setString(2, emailFragment)
+        statement.executeQuery().use { resultSet ->
+            val rows = ArrayList<T>()
+            while (resultSet.next()) {
+                rows += mapper(
+                    resultSet.getLong(1),
+                    checkNotNull(resultSet.getString(2)),
+                )
+            }
+            rows
+        }
+    }
+
+/** Maps each row to [SearchUsersRow]. */
+fun Connection.searchUsers(emailFragment: String?): List<SearchUsersRow> =
+    searchUsers(emailFragment, ::SearchUsersRow)
 
 data class InsertUserRow(
     val id: Long,
